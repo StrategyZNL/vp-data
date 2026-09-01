@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta name="googlebot" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<title>เข้าสู่ระบบ</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;500;600;700&display=swap">
+<style>
+  :root{
+    --bg:#f7f8fa; --card:#fff; --border:#e5e7eb; --text:#111827;
+    --muted:#6b7280; --accent:#0d9488; --accent-dark:#0f766e;
+    --red-bg:#fef2f2; --red-border:#fecaca; --red-text:#b91c1c;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; min-height:100vh; background:var(--bg); color:var(--text);
+    font-family:"Noto Sans Thai",-apple-system,"Segoe UI",sans-serif;
+    display:flex; align-items:center; justify-content:center; padding:24px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .box{
+    background:var(--card); border:1px solid var(--border); border-radius:14px;
+    padding:32px 28px; width:100%; max-width:390px;
+    box-shadow:0 1px 3px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.05);
+  }
+  .eyebrow{
+    font-size:11px; font-weight:700; letter-spacing:.11em; text-transform:uppercase;
+    color:var(--accent); margin:0 0 8px;
+  }
+  h1{font-size:21px; font-weight:700; margin:0 0 6px; letter-spacing:-.01em}
+  .sub{color:var(--muted); font-size:13.5px; margin:0 0 22px; line-height:1.6}
+  label{display:block; font-size:13px; font-weight:600; margin:0 0 7px}
+  .row{display:flex; gap:8px}
+  input[type=password],input[type=text]{
+    flex:1; width:100%; padding:11px 13px; font-size:15px; font-family:inherit;
+    border:1px solid #d1d5db; border-radius:9px; background:#fff; color:var(--text);
+    transition:border-color .15s,box-shadow .15s;
+  }
+  input:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px rgba(13,148,136,.13)}
+  .eye{
+    flex:0 0 auto; padding:0 13px; border:1px solid #d1d5db; border-radius:9px;
+    background:#fff; cursor:pointer; font-size:15px; color:var(--muted);
+  }
+  .eye:hover{background:#f9fafb}
+  button.go{
+    width:100%; margin-top:14px; padding:12px; font-size:15px; font-weight:600;
+    font-family:inherit; color:#fff; background:var(--accent); border:0;
+    border-radius:9px; cursor:pointer; transition:background .15s;
+  }
+  button.go:hover:not(:disabled){background:var(--accent-dark)}
+  button.go:disabled{opacity:.6; cursor:default}
+  .msg{
+    margin-top:14px; padding:10px 13px; border-radius:9px; font-size:13px;
+    line-height:1.55; display:none;
+  }
+  .msg.err{display:block; background:var(--red-bg); border:1px solid var(--red-border); color:var(--red-text)}
+  .msg.info{display:block; background:#f0fdfa; border:1px solid #99f6e4; color:#0f766e}
+  .bar{height:4px; background:#e5e7eb; border-radius:99px; overflow:hidden; margin-top:12px; display:none}
+  .bar.on{display:block}
+  .bar i{display:block; height:100%; width:35%; background:var(--accent); border-radius:99px; animation:sl 1.1s ease-in-out infinite}
+  @keyframes sl{0%{margin-left:-35%}100%{margin-left:100%}}
+  .foot{margin-top:18px; font-size:11.5px; color:#9ca3af; text-align:center; line-height:1.6}
+</style>
+</head>
+<body>
+<div class="box">
+  <p class="eyebrow">Progressive Lens Price List</p>
+  <h1>ตารางราคาเลนส์</h1>
+  <p class="sub">หน้านี้ถูกเข้ารหัสไว้ กรุณากรอกรหัสผ่านเพื่อเข้าดูข้อมูล</p>
+
+  <form id="f" autocomplete="off">
+    <label for="pw">รหัสผ่าน</label>
+    <div class="row">
+      <input type="password" id="pw" autocomplete="current-password" autofocus placeholder="กรอกรหัสผ่าน">
+      <button type="button" class="eye" id="eye" title="แสดง/ซ่อนรหัส">👁</button>
+    </div>
+    <button type="submit" class="go" id="go">เข้าดูตารางราคา</button>
+  </form>
+
+  <div class="bar" id="bar"><i></i></div>
+  <div class="msg" id="msg"></div>
+
+  <p class="foot">เนื้อหาเข้ารหัสด้วย AES-256-GCM<br>รหัสผ่านไม่ถูกส่งออกจากเครื่องของคุณ</p>
+</div>
+
+<script>
+(function(){
+  var ITER = 600000, SKEY = "plpl_pw";
+  var f=document.getElementById('f'), pw=document.getElementById('pw'),
+      go=document.getElementById('go'), msg=document.getElementById('msg'),
+      bar=document.getElementById('bar'), eye=document.getElementById('eye');
+
+  eye.onclick=function(){ pw.type = pw.type==='password'?'text':'password'; pw.focus(); };
+
+  function show(t,cls){ msg.textContent=t; msg.className='msg '+cls; }
+  function busy(on,t){ bar.className = on?'bar on':'bar'; go.disabled=on; if(t) show(t,'info'); }
+
+  if(!(window.crypto && crypto.subtle)){
+    show('เบราว์เซอร์นี้ไม่รองรับการถอดรหัส กรุณาเปิดผ่าน Chrome หรือ Safari รุ่นใหม่','err');
+    go.disabled=true; return;
+  }
+  if(typeof DecompressionStream === 'undefined'){
+    show('เบราว์เซอร์นี้เก่าเกินไป กรุณาอัปเดตเบราว์เซอร์แล้วลองใหม่','err');
+    go.disabled=true; return;
+  }
+
+  var cached=null;
+  function payload(){
+    if(cached) return Promise.resolve(cached);
+    return fetch('d.bin',{cache:'force-cache'}).then(function(r){
+      if(!r.ok) throw new Error('fetch');
+      return r.arrayBuffer();
+    }).then(function(b){ cached=new Uint8Array(b); return cached; });
+  }
+
+  function unlock(pass, silent){
+    busy(true,'กำลังถอดรหัส กรุณารอสักครู่…');
+    return payload().then(function(d){
+      var salt=d.slice(0,16), iv=d.slice(16,28), ct=d.slice(28);
+      return crypto.subtle.importKey('raw', new TextEncoder().encode(pass), 'PBKDF2', false, ['deriveKey'])
+        .then(function(bk){
+          return crypto.subtle.deriveKey(
+            {name:'PBKDF2', salt:salt, iterations:ITER, hash:'SHA-256'},
+            bk, {name:'AES-GCM', length:256}, false, ['decrypt']);
+        })
+        .then(function(k){ return crypto.subtle.decrypt({name:'AES-GCM', iv:iv}, k, ct); });
+    }).then(function(plain){
+      var ds=new DecompressionStream('gzip');
+      var w=ds.writable.getWriter(); w.write(new Uint8Array(plain)); w.close();
+      return new Response(ds.readable).text();
+    }).then(function(html){
+      try{ sessionStorage.setItem(SKEY, pass); }catch(e){}
+      document.open(); document.write(html); document.close();
+    }).catch(function(){
+      busy(false);
+      if(silent){ try{ sessionStorage.removeItem(SKEY); }catch(e){} return; }
+      show('รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง','err');
+      pw.value=''; pw.focus();
+    });
+  }
+
+  f.onsubmit=function(e){
+    e.preventDefault();
+    var v=pw.value.trim();
+    if(!v){ show('กรุณากรอกรหัสผ่าน','err'); return; }
+    unlock(v,false);
+  };
+
+  try{
+    var saved=sessionStorage.getItem(SKEY);
+    if(saved) unlock(saved,true);
+  }catch(e){}
+})();
+</script>
+</body>
+</html>
